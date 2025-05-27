@@ -1,23 +1,19 @@
-// gpt-webhook.js
-// LINE WORKSからのリクエストを受け取り、OpenAI GPT-4oに渡して応答を返す最小構成テンプレ
-
+// ✅ Render / Replit 両対応 GPT Webhook（Node.js / Express）
 import express from "express";
 import fetch from "node-fetch";
-import bodyParser from "body-parser";
 import dotenv from "dotenv";
 
 dotenv.config();
-
 const app = express();
-app.use(bodyParser.json());
-
 const PORT = process.env.PORT || 3000;
 
+app.use(express.json());
+
 app.post("/webhook", async (req, res) => {
-  const userMessage = req.body.content || req.body.text || "こんにちは";
+  const userMessage = req.body.text || req.body.content || "こんにちは";
 
   try {
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -32,21 +28,20 @@ app.post("/webhook", async (req, res) => {
       })
     });
 
-    const result = await openaiRes.json();
-    const reply = result.choices?.[0]?.message?.content || "すみません、うまく応答できませんでした。";
-
-    // LINE WORKSのWebhook形式で応答（テキスト）
+    const data = await gptRes.json();
+    const reply = data.choices?.[0]?.message?.content || "すみません、応答できませんでした。";
     res.json({ content: reply });
   } catch (err) {
     console.error("GPTエラー:", err);
-    res.status(500).json({ content: "エラーが発生しました。" });
+    res.status(500).json({ content: "サーバーエラーです。" });
   }
 });
 
 app.get("/", (req, res) => {
-  res.send("GPT Webhook is running.");
+  res.send("GPT Webhook is running!");
 });
 
+// ✅ PORTをRenderの仕様に対応させる（必須）
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server is running on port ${PORT}`);
 });
