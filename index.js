@@ -9,7 +9,10 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+// ✅ LINE WORKSからのWebhook受信 → ChatGPTへ転送 → 応答を返す
 app.post("/webhook", async (req, res) => {
+  console.log("✅ Webhook受信:", JSON.stringify(req.body, null, 2));
+
   const userMessage = req.body.text || req.body.content || "こんにちは";
 
   try {
@@ -30,13 +33,15 @@ app.post("/webhook", async (req, res) => {
 
     const data = await gptRes.json();
     const reply = data.choices?.[0]?.message?.content || "すみません、応答できませんでした。";
+
     res.json({ content: reply });
   } catch (err) {
-    console.error("GPTエラー:", err);
+    console.error("❌ GPTエラー:", err);
     res.status(500).json({ content: "サーバーエラーです。" });
   }
 });
 
+// ✅ 動作確認用のルート（ブラウザアクセス確認用）
 app.get("/", (req, res) => {
   res.send("GPT Webhook is running!");
 });
@@ -44,8 +49,4 @@ app.get("/", (req, res) => {
 // ✅ PORTをRenderの仕様に対応させる（必須）
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
-});
-app.post("/webhook", (req, res) => {
-  console.log("✅ Webhook受信:", JSON.stringify(req.body, null, 2));
-  res.status(200).send("OK");
 });
