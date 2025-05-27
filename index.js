@@ -1,4 +1,3 @@
-// ✅ Render / Replit 両対応 GPT Webhook（Node.js / Express）
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
@@ -9,13 +8,15 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// ✅ LINE WORKSからのWebhook受信 → ChatGPTへ転送 → 応答を返す
 app.post("/webhook", async (req, res) => {
   console.log("✅ Webhook受信:", JSON.stringify(req.body, null, 2));
 
-  const userMessage = req.body.text || req.body.content || "こんにちは";
+  const userMessage = req.body.content?.text || "こんにちは";
+  const userId = req.body.source?.userId;
+  const domainId = req.body.source?.domainId;
 
   try {
+    // ChatGPTに問い合わせ
     const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -34,19 +35,34 @@ app.post("/webhook", async (req, res) => {
     const data = await gptRes.json();
     const reply = data.choices?.[0]?.message?.content || "すみません、応答できませんでした。";
 
-    res.json({ content: reply });
+    // LINE WORKSに返信（Reply API）
+    await fetch("https://www.worksapis.com/v1.0/bots/@self/messages", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.LINE_BOT_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        botNo: process.env.LINE_BOT_NO, // 例: 12345678
+        accountId: userId,
+        content: {
+          type: "text",
+          text: reply
+        }
+      })
+    });
+
+    res.status(200).send("OK");
   } catch (err) {
-    console.error("❌ GPTエラー:", err);
-    res.status(500).json({ content: "サーバーエラーです。" });
+    console.error("❌ エラー:", err);
+    res.status(500).send("サーバーエラー");
   }
 });
 
-// ✅ 動作確認用のルート（ブラウザアクセス確認用）
 app.get("/", (req, res) => {
   res.send("GPT Webhook is running!");
 });
 
-// ✅ PORTをRenderの仕様に対応させる（必須）
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
 });
